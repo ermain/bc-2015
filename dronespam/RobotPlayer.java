@@ -18,7 +18,8 @@ public class RobotPlayer {
 	static final int massMinThreshold = 3; // num drones remaining to initiate retreat
 	static final int distThreshold = 36; // distance threshold to be considered 'at' the target
 	static final int supplyThreshold = 1000; // supply level drones will get refilled to
-	static final int minSupplyThreshold = 200; // supply level at which drones return to HQ for a refill
+	static final int minDroneSupplyThreshold = 200; // supply level at which drones return to HQ for a refill
+	static final int minBeaverSupplyThreshold = 10;
 	static final int minTimeToRetreat = 75;
 	/* End Tuning Parameters */
 	
@@ -84,6 +85,7 @@ public class RobotPlayer {
 					int numDronesAtTarget = 0;
 					int numBeavers = 0;
 					int numHelipads = 0;
+					int numDepots = 0;
 					for (RobotInfo r : myRobots) {
 						RobotType type = r.type;
 						if (type == RobotType.DRONE) {
@@ -95,10 +97,13 @@ public class RobotPlayer {
 							numBeavers++;
 						} else if (type == RobotType.HELIPAD) {
 							numHelipads++;
+						} else if (type == RobotType.SUPPLYDEPOT) {
+							numDepots++;
 						}
 					}
 					rc.broadcast(0, numBeavers);
 					rc.broadcast(1, numDrones);
+					rc.broadcast(2, numDepots);
 					rc.broadcast(100, numHelipads);
 
 					determineTarget(enemyHQLoc, myHQLoc, enemyTowers, myTowers, numDrones, numDronesAtTarget, attacking, retreatTimer);
@@ -138,7 +143,7 @@ public class RobotPlayer {
 					if (rc.isCoreReady()) {
 						MapLocation target;
 						attacking = rc.readBroadcast(attackingPos);
-						if (rc.getSupplyLevel() == 0 || (attacking == 0 && rc.getSupplyLevel() < minSupplyThreshold)) {
+						if (rc.getSupplyLevel() == 0 || (attacking == 0 && rc.getSupplyLevel() < minDroneSupplyThreshold)) {
 							target = myHQLoc;
 						} else {
 							int targetX = rc.readBroadcast(targetLocXPos);
@@ -166,19 +171,21 @@ public class RobotPlayer {
 			
 			if (rc.getType() == RobotType.BEAVER) {
 				try {
+					MapLocation myLoc = rc.getLocation();
 					if (rc.isWeaponReady()) {
 						attackSomething();
 					}
 					if (rc.isCoreReady()) {
-						int fate = rand.nextInt(1000);
-						if (fate < 8 && rc.getTeamOre() >= 300) {
-							tryBuild(directions[rand.nextInt(8)],RobotType.HELIPAD);
-						} else if (fate < 600) {
+						if (rc.getTeamOre() >= 300 && myLoc.distanceSquaredTo(myHQLoc) <= 36) {
+							tryBuild(myLoc.directionTo(myHQLoc),RobotType.HELIPAD);	
+						} else if (rc.getTeamOre() >= 100 && rc.readBroadcast(2) == 0) {
+							tryBuild(directions[rand.nextInt(8)], RobotType.SUPPLYDEPOT);
+						//} else if (rc.getSupplyLevel() <= minBeaverSupplyThreshold) {
+						//	tryMove(myLoc.directionTo(myHQLoc));
+						} else if (rc.senseOre(myLoc) >= 40) {
 							rc.mine();
-						} else if (fate < 900) {
-							tryMove(directions[rand.nextInt(8)]);
 						} else {
-							tryMove(rc.senseHQLocation().directionTo(rc.getLocation()));
+							moveTowardsOre(rc);
 						}
 					}
 				} catch (Exception e) {
@@ -228,7 +235,7 @@ public class RobotPlayer {
 	}
 	
     // This method will attempt to move in Direction d (or as close to it as possible)
-	static void tryMove(Direction d) throws GameActionException {
+	static boolean tryMove(Direction d) throws GameActionException {
 		int offsetIndex = 0;
 		int[] offsets = {0,1,-1,2,-2};
 		int dirint = directionToInt(d);
@@ -238,7 +245,9 @@ public class RobotPlayer {
 		}
 		if (offsetIndex < 5) {
 			rc.move(directions[(dirint+offsets[offsetIndex]+8)%8]);
+			return true;
 		}
+		return false;
 	}
 	
     // This method will attempt to spawn in the given direction (or as close to it as possible)
@@ -327,6 +336,35 @@ public class RobotPlayer {
 			if (r.team == myTeam && /* r.type == RobotType.DRONE && */ supply < supplyThreshold && rc.getSupplyLevel() >= supplyThreshold - supply) {
 				rc.transferSupplies((int)(supplyThreshold - supply), r.location);
 			}
+		}
+	}
+	
+	static void moveTowardsOre(RobotController rc) throws GameActionException {
+		MapLocation myLoc = rc.getLocation();
+		MapLocation[] locs = MapLocation.getAllMapLocationsWithinRadiusSq(myLoc, rc.getType().sensorRadiusSquared);
+		double maxOre = rc.senseOre(myLoc) + .01; // stay and mine if higher than surrounding
+		int numMax = 1;
+		MapLocation deposit = null;
+		for (MapLocation l : locs) {
+			if (rc.canSenseLocation(l) && rc.senseRobotAtLocation(l) != null) continue;
+			double ore = rc.senseOre(l);
+			if (ore > maxOre) {
+				maxOre = ore;
+				deposit = l;
+				numMax = 1;
+			} else if (ore == maxOre) {
+				numMax++;
+				if (rand.nextInt(numMax) == 1) { // pick a max deposit uniformly at random
+					deposit = l;
+				}
+			}
+		}
+		if (deposit != null) {
+			if (!tryMove(myLoc.directionTo(deposit))) {
+				rc.mine();
+			}
+		} else {
+			rc.mine();
 		}
 	}
 	
