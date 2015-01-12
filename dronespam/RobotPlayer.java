@@ -4,14 +4,24 @@ import battlecode.common.*;
 import java.util.*;
 
 public class RobotPlayer {
+	/* Array Locs */
 	static final int targetLocXPos = 1000;
 	static final int targetLocYPos = 1001;
 	static final int targetMassPos = 1002;
 	static final int attackingPos = 1003;
 	static final int attackTime = 1004;
-	static final int massMaxThreshold = 15;
-	static final int massMinThreshold = 3;
-	static final int distThreshold = 36;
+	/* End Array Locs */
+	
+	/* Tuning Parameters */
+	static final int massMaxThreshold = 15; // num drones needed to initiate attack
+	static final int massHQThreshold = 30; // num drones needed to initiate attack on HQ
+	static final int massMinThreshold = 3; // num drones remaining to initiate retreat
+	static final int distThreshold = 36; // distance threshold to be considered 'at' the target
+	static final int supplyThreshold = 2000; // supply level drones will get refilled to
+	static final int minSupplyThreshold = 500; // supply level at which drones return to HQ for a refill
+	static final int minTimeToRetreat = 75;
+	/* End Tuning Parameters */
+	
 	static RobotController rc;
 	static Team myTeam;
 	static Team enemyTeam;
@@ -32,12 +42,12 @@ public class RobotPlayer {
 		RobotInfo[] myRobots;
 		MapLocation[] enemyTowers;
 		MapLocation[] myTowers;
-		boolean swarmReachedTarget = false;
+		int attacking = 1;
+		int retreatTimer = 0;
 		
 		if (rc.getType() == RobotType.HQ) {// game start compute goes here 
 			try {
 				rc.broadcast(attackingPos, 1);
-				swarmReachedTarget = true;
 			} catch (Exception e) {
                 System.out.println("Unexpected exception");
                 e.printStackTrace();
@@ -60,7 +70,15 @@ public class RobotPlayer {
 					myTowers = rc.senseTowerLocations();
 					
 					MapLocation curTarget = new MapLocation(rc.readBroadcast(targetLocXPos),rc.readBroadcast(targetLocYPos));
-					int attacking = rc.readBroadcast(attackingPos);
+					int prevAttacking = attacking;
+					attacking = rc.readBroadcast(attackingPos);
+					if (prevAttacking == 0 && attacking == 1) {
+						//attack recently initiated; set retreat timer
+						retreatTimer = minTimeToRetreat;
+					} else {
+						retreatTimer--;
+					}
+					
 					
 					int numDrones = 0;
 					int numDronesAtTarget = 0;
@@ -82,13 +100,11 @@ public class RobotPlayer {
 					rc.broadcast(0, numBeavers);
 					rc.broadcast(1, numDrones);
 					rc.broadcast(100, numHelipads);
+
+					determineTarget(enemyHQLoc, myHQLoc, enemyTowers, myTowers, numDrones, numDronesAtTarget, attacking, retreatTimer);
+
 					
-					if (numDronesAtTarget > massMinThreshold) {
-						swarmReachedTarget = true;
-					}
-					if (determineTarget(enemyHQLoc, myHQLoc, enemyTowers, myTowers, numDrones, numDronesAtTarget, attacking, swarmReachedTarget)) {
-						swarmReachedTarget = false;
-					}
+					handleSupply(rc);
 					
 					if (rc.isWeaponReady()) {
 						attackSomething();
@@ -120,10 +136,25 @@ public class RobotPlayer {
 						attackSomething();
 					}
 					if (rc.isCoreReady()) {
-						int targetX = rc.readBroadcast(targetLocXPos);
-						int targetY = rc.readBroadcast(targetLocYPos);
-						MapLocation target = new MapLocation(targetX, targetY);
+						MapLocation target;
+						attacking = rc.readBroadcast(attackingPos);
+						if (attacking == 0 && rc.getSupplyLevel() < minSupplyThreshold) {
+							target = myHQLoc;
+						} else {
+							int targetX = rc.readBroadcast(targetLocXPos);
+							int targetY = rc.readBroadcast(targetLocYPos);
+							target = new MapLocation(targetX, targetY);
+						}
+						
 						MapLocation myLoc = rc.getLocation();
+						if (attacking == 0 && myLoc.distanceSquaredTo(target) <= 5) {
+							int fate = rand.nextInt(5);
+							if (fate != 1) { // conserve supply by moving with 1/5 probability
+								rc.yield();
+								continue;
+							}
+						}
+						
 						Direction d = myLoc.directionTo(target);
 						tryMove(d);
 					}
@@ -177,11 +208,22 @@ public class RobotPlayer {
 		}
 	}
 	
-    // This method will attack an enemy in sight, if there is one
+    // This method will attack an enemy in sight, if there is one, prioritizing HQ > TOWER > other
 	static void attackSomething() throws GameActionException {
 		RobotInfo[] enemies = rc.senseNearbyRobots(myRange, enemyTeam);
-		if (enemies.length > 0) {
-			rc.attackLocation(enemies[0].location);
+		MapLocation target = null;
+		for (RobotInfo r : enemies) {
+			if (target == null) {
+				target = r.location;
+			} else if (r.type == RobotType.HQ) {
+				target = r.location;
+				break;
+			} else if (r.type == RobotType.TOWER) {
+				target = r.location;
+			}
+		}
+		if (target != null) {
+			rc.attackLocation(target);
 		}
 	}
 	
@@ -228,35 +270,56 @@ public class RobotPlayer {
 	}
 	
 	static boolean determineTarget(MapLocation enemyLoc, MapLocation myLoc, MapLocation [] enemyTowers, MapLocation [] myTowers, 
-			int numDrones, int numDronesAtTarget, int attacking, boolean swarmReachedTarget) throws GameActionException, NullPointerException {
+			int numDrones, int numDronesAtTarget, int attacking, int retreatTimer) throws GameActionException, NullPointerException {
 		int minDist = 999999;
-		MapLocation closestTower = null;
 		MapLocation [] towers = null;
 		MapLocation loc = null;
+		MapLocation target = null;
 		
-		if (numDronesAtTarget > massMaxThreshold) { // initiate attack
-			loc = myLoc;
-			towers = enemyTowers;
-			attacking = 1;
-		} else if (attacking == 1 && numDronesAtTarget < massMinThreshold && swarmReachedTarget) { // initiate retreat
+		boolean callRetreat = (attacking == 1) && (numDronesAtTarget < massMinThreshold) && (retreatTimer <= 0);
+		
+		if (callRetreat) { // initiate retreat
 			loc = enemyLoc;
 			towers = myTowers;
 			attacking = 0;
+		} else if (enemyTowers.length <= 3) {
+			if (numDronesAtTarget > massHQThreshold) { // attack their HQ
+				rc.broadcast(targetLocXPos, enemyLoc.x);
+				rc.broadcast(targetLocYPos, enemyLoc.y);
+				rc.broadcast(attackingPos, 1);
+				return true;
+			} else {
+				return false;
+			}
+		} else if (attacking == 1 || numDronesAtTarget > massMaxThreshold) { // initiate attack
+			loc = myLoc;
+			towers = enemyTowers;
+			attacking = 1;
 		} else { // status quo
 			return false;
 		}
 			
 		for (MapLocation l : towers) {
-			int dist = l.distanceSquaredTo(myLoc);
+			int dist = l.distanceSquaredTo(loc);
 			if (dist < minDist) {
 				minDist = dist;
-				closestTower = l;
+				target = l;
 			}
 		}
-		rc.broadcast(targetLocXPos, closestTower.x);
-		rc.broadcast(targetLocYPos, closestTower.y);
+		rc.broadcast(targetLocXPos, target.x);
+		rc.broadcast(targetLocYPos, target.y);
 		rc.broadcast(attackingPos, attacking);
 		return true;
+	}
+	
+	static void handleSupply(RobotController rc)  throws GameActionException {
+		RobotInfo[] myRobots = rc.senseNearbyRobots(15); // 15 is the supply transfer distance
+		for (RobotInfo r : myRobots) {
+			double supply = r.supplyLevel;
+			if (r.type == RobotType.DRONE && supply < supplyThreshold && rc.getSupplyLevel() >= supplyThreshold - supply) {
+				rc.transferSupplies((int)(supplyThreshold - supply), r.location);
+			}
+		}
 	}
 	
 	static int directionToInt(Direction d) {
