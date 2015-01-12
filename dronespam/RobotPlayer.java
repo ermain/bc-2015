@@ -274,6 +274,10 @@ public class RobotPlayer {
 		int minDist = 999999;
 		MapLocation [] towers = null;
 		MapLocation loc = null;
+		
+		int oldTargetX = rc.readBroadcast(targetLocXPos);
+		int oldTargetY = rc.readBroadcast(targetLocYPos);
+		MapLocation oldTarget = new MapLocation(oldTargetX, oldTargetY);
 		MapLocation target = null;
 		
 		boolean callRetreat = (attacking == 1) && (numDronesAtTarget < massMinThreshold) && (retreatTimer <= 0);
@@ -288,6 +292,10 @@ public class RobotPlayer {
 				rc.broadcast(targetLocYPos, enemyLoc.y);
 				rc.broadcast(attackingPos, 1);
 				return true;
+			} else if (attacking == 1 && oldTarget.compareTo(enemyLoc) != 0) { // call an automatic retreat before final push
+				loc = enemyLoc;
+				towers = myTowers;
+				attacking = 0;
 			} else {
 				return false;
 			}
