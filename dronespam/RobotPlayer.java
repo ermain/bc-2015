@@ -17,8 +17,8 @@ public class RobotPlayer {
 	static final int massHQThreshold = 30; // num drones needed to initiate attack on HQ
 	static final int massMinThreshold = 3; // num drones remaining to initiate retreat
 	static final int distThreshold = 36; // distance threshold to be considered 'at' the target
-	static final int supplyThreshold = 2000; // supply level drones will get refilled to
-	static final int minSupplyThreshold = 500; // supply level at which drones return to HQ for a refill
+	static final int supplyThreshold = 1000; // supply level drones will get refilled to
+	static final int minSupplyThreshold = 200; // supply level at which drones return to HQ for a refill
 	static final int minTimeToRetreat = 75;
 	/* End Tuning Parameters */
 	
@@ -138,7 +138,7 @@ public class RobotPlayer {
 					if (rc.isCoreReady()) {
 						MapLocation target;
 						attacking = rc.readBroadcast(attackingPos);
-						if (attacking == 0 && rc.getSupplyLevel() < minSupplyThreshold) {
+						if (rc.getSupplyLevel() == 0 || (attacking == 0 && rc.getSupplyLevel() < minSupplyThreshold)) {
 							target = myHQLoc;
 						} else {
 							int targetX = rc.readBroadcast(targetLocXPos);
@@ -324,7 +324,7 @@ public class RobotPlayer {
 		RobotInfo[] myRobots = rc.senseNearbyRobots(15); // 15 is the supply transfer distance
 		for (RobotInfo r : myRobots) {
 			double supply = r.supplyLevel;
-			if (r.type == RobotType.DRONE && supply < supplyThreshold && rc.getSupplyLevel() >= supplyThreshold - supply) {
+			if (r.team == myTeam && /* r.type == RobotType.DRONE && */ supply < supplyThreshold && rc.getSupplyLevel() >= supplyThreshold - supply) {
 				rc.transferSupplies((int)(supplyThreshold - supply), r.location);
 			}
 		}
