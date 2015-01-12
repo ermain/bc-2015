@@ -79,11 +79,11 @@ public class HQ extends OurRobot {
 	}
 	
 	
-	static void handleSupply(RobotController rc)  throws GameActionException {
+	void handleSupply(RobotController rc)  throws GameActionException {
 		RobotInfo[] myRobots = rc.senseNearbyRobots(15); // 15 is the supply transfer distance
 		for (RobotInfo r : myRobots) {
 			double supply = r.supplyLevel;
-			if (r.type == RobotType.DRONE && supply < Const.supplyThreshold && rc.getSupplyLevel() >= Const.supplyThreshold - supply) {
+			if (r.team == myTeam && supply < Const.supplyThreshold && rc.getSupplyLevel() >= Const.supplyThreshold - supply) {
 				rc.transferSupplies((int)(Const.supplyThreshold - supply), r.location);
 			}
 		}
