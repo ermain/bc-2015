@@ -44,6 +44,8 @@ public class HQ extends OurRobot {
 		int numBeavers = 0;
 		int numHelipads = 0;
 		int numDepots = 0;
+		int numFactories = 0;
+		int numMiners = 0;
 		for (RobotInfo r : myRobots) {
 			RobotType type = r.type;
 			if (type == RobotType.DRONE) {
@@ -57,13 +59,20 @@ public class HQ extends OurRobot {
 				numHelipads++;
 			} else if (type == RobotType.SUPPLYDEPOT) {
 				numDepots++;
+			} else if (type == RobotType.MINERFACTORY) {
+				numFactories++;
+			} else if (type == RobotType.MINER) {
+				numMiners++;
 			}
 		}
-		mRc.broadcast(0, numBeavers);
-		mRc.broadcast(1, numDrones);
-		mRc.broadcast(2, numDepots);
+		mRc.broadcast(Const.numBeaverPos, numBeavers);
+		mRc.broadcast(Const.numDronePos, numDrones);
+		mRc.broadcast(Const.numDepotPos, numDepots);
+		mRc.broadcast(Const.numHelipadPos, numHelipads);
+		mRc.broadcast(Const.numFactoryPos, numFactories);
+		mRc.broadcast(Const.numMinerPos, numMiners);
 
-		mRc.broadcast(100, numHelipads);
+		
 
 		determineTarget(enemyHQLoc, myHQLoc, enemyTowers, myTowers, numDrones, numDronesAtTarget, attacking, retreatTimer);
 
@@ -73,7 +82,7 @@ public class HQ extends OurRobot {
 			attackSomething();
 		}
 
-		if (mRc.isCoreReady() && mRc.getTeamOre() >= 100 && fate < Math.pow(1.2,12-numBeavers)*10000) {
+		if (mRc.isCoreReady() && mRc.getTeamOre() >= 100 && numBeavers < Const.maxBeavers) {
 			trySpawn(Const.directions[rand.nextInt(8)], RobotType.BEAVER);
 		}
 	}
@@ -83,8 +92,14 @@ public class HQ extends OurRobot {
 		RobotInfo[] myRobots = rc.senseNearbyRobots(15); // 15 is the supply transfer distance
 		for (RobotInfo r : myRobots) {
 			double supply = r.supplyLevel;
-			if (r.team == myTeam && supply < Const.supplyThreshold && rc.getSupplyLevel() >= Const.supplyThreshold - supply) {
-				rc.transferSupplies((int)(Const.supplyThreshold - supply), r.location);
+			double mySupply = rc.getSupplyLevel();
+			
+			if (r.team != myTeam) continue;
+	
+			if (r.type == RobotType.DRONE && supply < Const.droneSupplyThreshold && mySupply >= Const.droneSupplyThreshold - supply) {
+				rc.transferSupplies((int)(Const.droneSupplyThreshold - supply), r.location);
+			} else if (supply < Const.otherSupplyThreshold && mySupply >= Const.otherSupplyThreshold - supply) {
+				rc.transferSupplies((int)(Const.otherSupplyThreshold - supply), r.location);
 			}
 		}
 	}

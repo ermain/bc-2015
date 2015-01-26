@@ -7,6 +7,13 @@ public class Const {
 	public static Direction[] directions = {Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST, Direction.SOUTH, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST};
 
 	/* Array Locs */
+	public static final int numBeaverPos = 0;
+	public static final int numDronePos = 1;
+	public static final int numDepotPos = 2;
+	public static final int numHelipadPos = 3;
+	public static final int numFactoryPos = 4;
+	public static final int numMinerPos = 5;
+
 	public static final int targetLocXPos = 1000;
 	public static final int targetLocYPos = 1001;
 	public static final int targetMassPos = 1002;
@@ -15,11 +22,14 @@ public class Const {
 	/* End Array Locs */
 	
 	/* Tuning Parameters */
+	public static final int maxBeavers = 2; // num beavers to build before switching to miners
+	public static final int maxMiners = 20;
 	public static final int massMaxThreshold = 15; // num drones needed to initiate attack
 	public static final int massHQThreshold = 30; // num drones needed to initiate attack on HQ
 	public static final int massMinThreshold = 3; // num drones remaining to initiate retreat
 	public static final int distThreshold = 36; // distance threshold to be considered 'at' the target
-	public static final int supplyThreshold = 1000; // supply level drones will get refilled to
+	public static final int droneSupplyThreshold = 2000; // supply level drones will get refilled to
+	public static final int otherSupplyThreshold = 1000; // supply level drones will get refilled to
 	public static final int minDroneSupplyThreshold = 200; // supply level at which drones return to HQ for a refill
 	public static final int minBeaverSupplyThreshold = 10;
 	public static final int minTimeToRetreat = 75;

@@ -32,7 +32,7 @@ public abstract class OurRobot {
 	public void doTurn() throws GameActionException {
 	}
 	// This method will attempt to move in Direction d (or as close to it as possible)
-	static boolean tryMove(Direction d) throws GameActionException {
+	public boolean tryMove(Direction d) throws GameActionException {
 		int offsetIndex = 0;
 		int[] offsets = {0,1,-1,2,-2};
 		int dirint = Const.directionToInt(d);
@@ -47,7 +47,22 @@ public abstract class OurRobot {
 		return false;
 	}
 	
-	static void tryBuild(Direction d, RobotType type) throws GameActionException {
+	public boolean tryMoveAway(Direction d) throws GameActionException {
+		int offsetIndex = 0;
+		int[] offsets = {4,5,3,7,2};
+		int dirint = Const.directionToInt(d);
+		boolean blocked = false;
+		while (offsetIndex < 5 && !mRc.canMove(Const.directions[(dirint+offsets[offsetIndex]+8)%8])) {
+			offsetIndex++;
+		}
+		if (offsetIndex < 5) {
+			mRc.move(Const.directions[(dirint+offsets[offsetIndex]+8)%8]);
+			return true;
+		}
+		return false;
+	}
+	
+	public void tryBuild(Direction d, RobotType type) throws GameActionException {
 		int offsetIndex = 0;
 		int[] offsets = {0,1,-1,2,-2,3,-3,4};
 		int dirint = Const.directionToInt(d);
@@ -60,7 +75,7 @@ public abstract class OurRobot {
 		}
 	}
 	// This method will attempt to spawn in the given direction (or as close to it as possible)
-	static void trySpawn(Direction d, RobotType type) throws GameActionException {
+	public void trySpawn(Direction d, RobotType type) throws GameActionException {
 		int offsetIndex = 0;
 		int[] offsets = {0,1,-1,2,-2,3,-3,4};
 		int dirint = Const.directionToInt(d);
@@ -88,6 +103,35 @@ public abstract class OurRobot {
 		}
 		if (target != null) {
 			mRc.attackLocation(target);
+		}
+	}
+	
+	public void moveTowardsOre(RobotController rc) throws GameActionException {
+		MapLocation myLoc = rc.getLocation();
+		MapLocation[] locs = MapLocation.getAllMapLocationsWithinRadiusSq(myLoc, rc.getType().sensorRadiusSquared);
+		double maxOre = rc.senseOre(myLoc) + .01; // stay and mine if higher than surrounding
+		int numMax = 1;
+		MapLocation deposit = null;
+		for (MapLocation l : locs) {
+			if (rc.canSenseLocation(l) && rc.senseRobotAtLocation(l) != null) continue;
+			double ore = rc.senseOre(l);
+			if (ore > maxOre) {
+				maxOre = ore;
+				deposit = l;
+				numMax = 1;
+			} else if (ore == maxOre) {
+				numMax++;
+				if (rand.nextInt(numMax) == 1) { // pick a max deposit uniformly at random
+					deposit = l;
+				}
+			}
+		}
+		if (deposit != null) {
+			if (!tryMove(myLoc.directionTo(deposit))) {
+				rc.mine();
+			}
+		} else {
+			rc.mine();
 		}
 	}
 }

@@ -15,8 +15,8 @@ public class Helipad extends OurRobot{
 		int fate = rand.nextInt(10000);
 		
         // get information broadcasted by the HQ
-		int numBeavers = mRc.readBroadcast(0);
-		int numDrones = mRc.readBroadcast(1);
+		int numBeavers = mRc.readBroadcast(Const.numBeaverPos);
+		int numDrones = mRc.readBroadcast(Const.numDronePos);
 		
 		if (mRc.isCoreReady() && mRc.getTeamOre() >= 125 && fate < Math.pow(1.2,15-numDrones+numBeavers)*10000) {
 			trySpawn(Const.directions[rand.nextInt(8)],RobotType.DRONE);

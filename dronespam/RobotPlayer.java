@@ -35,6 +35,12 @@ public class RobotPlayer {
 		else if (rc.getType() == RobotType.TOWER) {
 			robot = new Tower(rc);
 		}
+		else if (rc.getType() == RobotType.MINERFACTORY) {
+			robot = new MinerFactory(rc);
+		}
+		else if (rc.getType() == RobotType.MINER) {
+			robot = new Miner(rc);
+		}
 		else {
 			robot = new Unimplemented(rc);
 		}

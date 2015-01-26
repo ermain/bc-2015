@@ -11,49 +11,34 @@ public class Beaver extends OurRobot {
 	
 	}
 	public void doTurn() throws GameActionException {
+		int fate = rand.nextInt(3);
 		MapLocation myLoc = mRc.getLocation();
 		if (mRc.isWeaponReady()) {
 			attackSomething();
 		}
 		if (mRc.isCoreReady()) {
-			if (mRc.getTeamOre() >= 300 && myLoc.distanceSquaredTo(myHQLoc) <= 36) {
-				tryBuild(myLoc.directionTo(myHQLoc),RobotType.HELIPAD);	
-			} else if (mRc.getTeamOre() >= 100 && mRc.readBroadcast(2) == 0) {
+			Direction dirToHQ = myLoc.directionTo(myHQLoc);
+			int distToHQ = myLoc.distanceSquaredTo(myHQLoc);
+			if (mRc.getTeamOre() >= 500 && distToHQ <= 36 && mRc.readBroadcast(Const.numFactoryPos) == 0){
+				// Build one miner factory ASAP
+				tryBuild(dirToHQ,RobotType.MINERFACTORY);	
+			}
+			else if (mRc.getTeamOre() >= 300 && distToHQ <= 36 && mRc.readBroadcast(Const.numFactoryPos) > 0) {
+				// Build Helipad whenever we have spare ore and have already built a miner factory
+				tryBuild(dirToHQ,RobotType.HELIPAD);	
+			} else if (mRc.getTeamOre() >= 100 && mRc.readBroadcast(Const.numDepotPos) == 0 && mRc.readBroadcast(Const.numFactoryPos) > 0) {
+				// Build one supply depot after we have at least one miner factory
 				tryBuild(Const.directions[rand.nextInt(8)], RobotType.SUPPLYDEPOT);
-			} else if (mRc.senseOre(myLoc) >= 40) {
+			} else if (fate == 1) {
 				mRc.mine();
+			} else if (fate == 2) {
+				tryMove(Const.directions[rand.nextInt(8)]);
+			} else if (myLoc.distanceSquaredTo(myHQLoc) <= 10) {
+				tryMoveAway(dirToHQ);
 			} else {
-				moveTowardsOre(mRc);
+				tryMove(dirToHQ);
 			}
-		}
-	}
-	
-	void moveTowardsOre(RobotController rc) throws GameActionException {
-		MapLocation myLoc = rc.getLocation();
-		MapLocation[] locs = MapLocation.getAllMapLocationsWithinRadiusSq(myLoc, rc.getType().sensorRadiusSquared);
-		double maxOre = rc.senseOre(myLoc) + .01; // stay and mine if higher than surrounding
-		int numMax = 1;
-		MapLocation deposit = null;
-		for (MapLocation l : locs) {
-			if (rc.canSenseLocation(l) && rc.senseRobotAtLocation(l) != null) continue;
-			double ore = rc.senseOre(l);
-			if (ore > maxOre) {
-				maxOre = ore;
-				deposit = l;
-				numMax = 1;
-			} else if (ore == maxOre) {
-				numMax++;
-				if (rand.nextInt(numMax) == 1) { // pick a max deposit uniformly at random
-					deposit = l;
-				}
-			}
-		}
-		if (deposit != null) {
-			if (!tryMove(myLoc.directionTo(deposit))) {
-				rc.mine();
-			}
-		} else {
-			rc.mine();
+			
 		}
 	}
 }
