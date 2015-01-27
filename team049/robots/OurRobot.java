@@ -16,6 +16,9 @@ public abstract class OurRobot {
 	public MapLocation[] myTowers;
 	public MapLocation enemyHQLoc;
 	public MapLocation myHQLoc;
+	public State state;
+	
+	public enum State {DEFENDING, EN_ROUTE, RESUPPLYING, ATTACKING};
 	
 	// Put generic functions that all robots will have to use in this file.
 	

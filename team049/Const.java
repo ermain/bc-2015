@@ -39,12 +39,12 @@ public class Const {
 	public static final int massTankMinThreshold = 3; // num tanks remaining to initiate retreat
 	public static final int distThreshold = 36; // distance threshold to be considered 'at' the target
 	public static final int droneSupplyThreshold = 2000; // supply level drones will get refilled to
-	public static final int tankSupplyThreshold = 4000; // supply level drones will get refilled to
+	public static final int tankSupplyThreshold = 6000; // supply level drones will get refilled to
 	public static final int otherSupplyThreshold = 1000; // supply level drones will get refilled to
 	public static final int minDroneSupplyThreshold = 200; // supply level at which drones return to HQ for a refill
-	public static final int minTankSupplyThreshold = 200; // supply level at which drones return to HQ for a refill
+	public static final int minTankSupplyThreshold = 500; // supply level at which drones return to HQ for a refill
 	public static final int minBeaverSupplyThreshold = 10;
-	public static final int minTimeToRetreat = 75;
+	public static final int minTimeToRetreat = 150;
 	public static final int droneAttackZone = 2;
 	public static final int tankAttackZone = 8;
 	public static final int towersToLeave = 0;

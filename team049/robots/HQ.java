@@ -102,6 +102,8 @@ public class HQ extends OurRobot {
 		if (mRc.isCoreReady() && mRc.getTeamOre() >= 100 && numBeavers < Const.maxBeavers) {
 			trySpawn(Const.directions[rand.nextInt(8)], RobotType.BEAVER);
 		}
+		
+		mRc.setIndicatorString(0, ""+Clock.getBytecodeNum());
 	}
 	
 	

@@ -60,7 +60,6 @@ public class RobotPlayer {
 		rc.yield();
 		while (true) {
 			try {
-	            rc.setIndicatorString(0, "This is an indicator string.");
 	            rc.setIndicatorString(1, "I am a " + rc.getType());
 	            
 				robot.doTurn();
